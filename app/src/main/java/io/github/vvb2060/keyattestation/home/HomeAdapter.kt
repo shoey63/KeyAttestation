@@ -102,25 +102,29 @@ class HomeAdapter(listener: Listener) : IdBasedRecyclerViewAdapter() {
             null
         }
 
-        // Add the Source Indicator
+                // Add the Source Indicator
         val source = io.github.vvb2060.keyattestation.attestation.RevocationList.getCurrentSource()
+        val app = io.github.vvb2060.keyattestation.AppApplication.app
+        
         val sourceSuffix = when (source) {
-            RevocationList.DataSource.CACHE -> " " + context.getString(R.string.cert_error_revoked_cached)
-            RevocationList.DataSource.BUNDLED -> " " + context.getString(R.string.cert_error_revoked_offline)
+            RevocationList.DataSource.CACHE -> " " + app.getString(R.string.cert_error_revoked_cached)
+            RevocationList.DataSource.BUNDLED -> " " + app.getString(R.string.cert_error_revoked_offline)
             else -> "" // NETWORK doesn't need a suffix
         }
 
-        if (dateStr != null) {
-            dateStr += sourceSuffix
-        } else if (source == RevocationList.DataSource.BUNDLED) {
-            // If date is null but we are using bundled data, show "(offline)"
-            dateStr = sourceSuffix.trim()
+        var dateDisplay = if (publishTime != null) {
+            io.github.vvb2060.keyattestation.attestation.AuthorizationList.formatDate(publishTime) + sourceSuffix
+        } else if (source == RevocationList.DataSource.BUNDLED || source == RevocationList.DataSource.CACHE) {
+            sourceSuffix.trim()
+        } else {
+            null
         }
 
         addItem(CommonItemViewHolder.COMMON_CREATOR, CommonData(
                 R.string.revocation_list_publish_time,
                 R.string.revocation_list_description,
-                dateStr), ID_REVOCATION_INFO)
+                dateDisplay), ID_REVOCATION_INFO)
+
 
         when (baseData) {
             is AttestationData -> updateData(baseData)
