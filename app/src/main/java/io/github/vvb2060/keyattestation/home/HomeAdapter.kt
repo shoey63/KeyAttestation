@@ -94,13 +94,29 @@ class HomeAdapter(listener: Listener) : IdBasedRecyclerViewAdapter() {
             addItem(CommonItemViewHolder.CERT_INFO_CREATOR, certInfo, id++)
         }
 
-        // Add revocation list information
+                // Add revocation list information
         val publishTime = io.github.vvb2060.keyattestation.attestation.RevocationList.getPublishTime()
-        val dateStr = if (publishTime != null) {
+        var dateStr = if (publishTime != null) {
             io.github.vvb2060.keyattestation.attestation.AuthorizationList.formatDate(publishTime)
         } else {
             null
         }
+
+        // Add the Source Indicator
+        val source = io.github.vvb2060.keyattestation.attestation.RevocationList.getCurrentSource()
+        val sourceSuffix = when (source) {
+            RevocationList.DataSource.CACHE -> " " + context.getString(R.string.cert_error_revoked_cached)
+            RevocationList.DataSource.BUNDLED -> " " + context.getString(R.string.cert_error_revoked_offline)
+            else -> "" // NETWORK doesn't need a suffix
+        }
+
+        if (dateStr != null) {
+            dateStr += sourceSuffix
+        } else if (source == RevocationList.DataSource.BUNDLED) {
+            // If date is null but we are using bundled data, show "(offline)"
+            dateStr = sourceSuffix.trim()
+        }
+
         addItem(CommonItemViewHolder.COMMON_CREATOR, CommonData(
                 R.string.revocation_list_publish_time,
                 R.string.revocation_list_description,
