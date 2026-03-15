@@ -64,22 +64,24 @@ public class CertificateInfo {
         issuer = RootPublicKey.check(publicKey);
     }
 
-        private void checkStatus(PublicKey parentKey) {
+            private void checkStatus(PublicKey parentKey) {
         try {
             status = CERT_SIGN;
             cert.verify(parentKey);
             status = CERT_REVOKED;
             var certStatus = RevocationList.get(cert.getSerialNumber());
             if (certStatus != null) {
-                // The certStatus.toString() we updated in RevocationList.java 
-                // already includes the source. We'll make it explicit here.
-                String message = "status is " + certStatus.status();
+                // Start with the base status from the JSON
+                StringBuilder message = new StringBuilder("status is " + certStatus.status());
+                
+                // Append the source suffix from strings.xml
                 if (certStatus.source() == RevocationList.DataSource.CACHE) {
-                    message += " (cached)";
+                    message.append(AppApplication.app.getString(R.string.cert_error_revoked_cached));
                 } else if (certStatus.source() == RevocationList.DataSource.BUNDLED) {
-                    message += " (offline)";
+                    message.append(AppApplication.app.getString(R.string.cert_error_revoked_offline));
                 }
-                throw new CertificateException(message);
+                
+                throw new CertificateException(message.toString());
             }
             status = CERT_EXPIRED;
             cert.checkValidity();
@@ -89,7 +91,6 @@ public class CertificateInfo {
             securityException = e;
         }
     }
-
 
     private boolean checkAttestation() {
         boolean terminate;
