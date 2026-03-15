@@ -1,15 +1,16 @@
 name: Build
 
-on: 
-  push:
-  pull_request:
-  workflow_dispatch: # This adds the "Run workflow" button in GitHub Actions
+on: [ push, pull_request ]
 
 jobs:
   build:
-    name: Build on Ubuntu
-    runs-on: ubuntu-latest
-    
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macOS-latest ]
+
     steps:
       - name: Check out
         uses: actions/checkout@v4
