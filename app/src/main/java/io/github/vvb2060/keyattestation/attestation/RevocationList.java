@@ -36,7 +36,6 @@ public record RevocationList(String status, String reason, DataSource source) {
     private static Date publishTime = null;
     private static DataSource currentSource = DataSource.BUNDLED;
 
-    // Internal helper to return both the JSON and the source it came from
     private record StatusResult(JSONObject json, DataSource source) {}
 
     private static String toString(InputStream input) throws IOException {
@@ -54,16 +53,15 @@ public record RevocationList(String status, String reason, DataSource source) {
 
     private static JSONObject parseStatus(InputStream inputStream) throws IOException {
         try {
-            var statusListJson = new JSONObject(toString(inputStream));
-            return statusListJson.getJSONObject("entries");
+            return new JSONObject(toString(inputStream));
         } catch (JSONException e) {
             throw new IOException(e);
         }
     }
 
-    private static void saveToCache(JSONObject json) {
+    private static void saveToCache(JSONObject fullJson) {
         try (var output = AppApplication.app.openFileOutput(CACHE_FILE, Context.MODE_PRIVATE)) {
-            output.write(json.toString().getBytes(StandardCharsets.UTF_8));
+            output.write(fullJson.toString().getBytes(StandardCharsets.UTF_8));
             if (publishTime != null) {
                 var prefs = AppApplication.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
                 prefs.edit().putLong(KEY_PUBLISH_TIME, publishTime.getTime()).apply();
@@ -88,30 +86,25 @@ public record RevocationList(String status, String reason, DataSource source) {
                 long lastModified = connection.getLastModified();
                 if (lastModified != 0) {
                     publishTime = new Date(lastModified);
-                    Log.i(TAG, "Revocation list Last-Modified: " + publishTime);
                 }
                 
                 try (var input = connection.getInputStream()) {
                     return parseStatus(input);
                 }
-            } else {
-                Log.w(TAG, "Failed to fetch revocation list from network, HTTP " + responseCode);
-                return null;
             }
+            return null;
         } catch (Exception e) {
-            Log.w(TAG, "Failed to fetch revocation list from network", e);
+            Log.w(TAG, "Network fetch failed", e);
             return null;
         } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
+            if (connection != null) connection.disconnect();
         }
     }
 
     private static StatusResult getStatus() {
         var statusUrl = "https://android.googleapis.com/attestation/status";
-        var resName = "android:string/vendor_required_attestation_revocation_list_url";
         var res = AppApplication.app.getResources();
+        var resName = "android:string/vendor_required_attestation_revocation_list_url";
         var id = res.getIdentifier(resName, null, null);
         if (id != 0) {
             var url = res.getString(id);
@@ -120,31 +113,34 @@ public record RevocationList(String status, String reason, DataSource source) {
             }
         }
         
-        // 1. Try Network
-        JSONObject networkData = fetchFromNetwork(statusUrl);
-        if (networkData != null) {
-            Log.i(TAG, "Successfully fetched revocation list from network");
-            saveToCache(networkData);
-            return new StatusResult(networkData, DataSource.NETWORK);
+        // 1. Network
+        JSONObject networkJson = fetchFromNetwork(statusUrl);
+        if (networkJson != null) {
+            saveToCache(networkJson);
+            try {
+                return new StatusResult(networkJson.getJSONObject("entries"), DataSource.NETWORK);
+            } catch (JSONException ignored) {}
         }
         
-        // 2. Try Cache
+        // 2. Cache
         try (var fis = AppApplication.app.openFileInput(CACHE_FILE)) {
-            Log.i(TAG, "Using cached revocation list");
+            var cacheJson = parseStatus(fis);
             var prefs = AppApplication.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             long lastTime = prefs.getLong(KEY_PUBLISH_TIME, 0);
             if (lastTime != 0) publishTime = new Date(lastTime);
-            return new StatusResult(parseStatus(fis), DataSource.CACHE);
-        } catch (IOException e) {
-            Log.i(TAG, "No cached revocation list found");
+            return new StatusResult(cacheJson.getJSONObject("entries"), DataSource.CACHE);
+        } catch (Exception e) {
+            Log.i(TAG, "Cache unavailable");
         }
 
-        // 3. Fallback to bundled resource
-        Log.i(TAG, "Using bundled revocation list");
+        // 3. Bundled
         try (var input = res.openRawResource(R.raw.status)) {
-            return new StatusResult(parseStatus(input), DataSource.BUNDLED);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to parse certificate revocation status", e);
+            var bundledJson = parseStatus(input);
+            // Bundled data has no publishTime from headers
+            publishTime = null; 
+            return new StatusResult(bundledJson.getJSONObject("entries"), DataSource.BUNDLED);
+        } catch (Exception e) {
+            throw new RuntimeException("Critical: Failed to load revocation data", e);
         }
     }
 
@@ -174,24 +170,17 @@ public record RevocationList(String status, String reason, DataSource source) {
                 }
             }
         }
-        String serialNumberString = serialNumber.toString(16).toLowerCase();
-        JSONObject revocationStatus;
+        String serial = serialNumber.toString(16).toLowerCase();
         try {
-            revocationStatus = data.getJSONObject(serialNumberString);
+            JSONObject entry = data.getJSONObject(serial);
+            return new RevocationList(entry.getString("status"), entry.getString("reason"), currentSource);
         } catch (JSONException e) {
             return null;
-        }
-        try {
-            var status = revocationStatus.getString("status");
-            var reason = revocationStatus.getString("reason");
-            return new RevocationList(status, reason, currentSource);
-        } catch (JSONException e) {
-            return new RevocationList("", "", currentSource);
         }
     }
 
     @Override
     public String toString() {
-        return "status is " + status + ", reason is " + reason + " (Source: " + source + ")";
+        return "status: " + status + ", source: " + source;
     }
 }
