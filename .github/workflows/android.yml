@@ -1,4 +1,4 @@
-name: CI Build
+name: Build
 
 on: [ push, pull_request ]
 
@@ -26,17 +26,11 @@ jobs:
           build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
           build-scan-terms-of-use-agree: "yes"
 
-      - name: Get version
-        id: get_version
-        run: |
-          VERSION=$(grep "versionName" app/build.gradle | awk -F"'" '{print $2}')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
       - name: Build with Gradle
         run: ./gradlew assembleDebug --parallel --build-cache
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: KeyAttestation-${{ steps.get_version.outputs.VERSION }}-debug
+          name: KeyAttestation-Debug-Build
           path: app/build/outputs/apk/debug/*.apk
