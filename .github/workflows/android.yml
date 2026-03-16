@@ -1,6 +1,16 @@
 name: Build
 
-on: [ push, pull_request ]
+on: 
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version Tag (e.g., 1.8.4)'
+        required: false
+        default: 'manual'
 
 jobs:
   build:
@@ -29,8 +39,20 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew assembleDebug --parallel --build-cache
 
+      - name: Prepare Artifact
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/debug/*.apk release/
+          cd release
+          # Uses input tag if provided, otherwise uses the run number
+          TAG="${{ github.event.inputs.version_tag }}"
+          if [ "$TAG" = "manual" ] || [ -z "$TAG" ]; then
+            TAG="v${{ github.run_number }}"
+          fi
+          for f in *.apk; do mv "$f" "KeyAttestation-$TAG.apk"; done
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: KeyAttestation-Debug-Build
-          path: app/build/outputs/apk/debug/*.apk
+          name: KeyAttestation-Build-${{ github.run_number }}
+          path: release/*.apk
