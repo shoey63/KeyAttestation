@@ -168,7 +168,10 @@ android {
         variant.outputs.all { output ->
             def version = variant.versionName
             def buildType = variant.buildType.name
-            def gitHash = 'git rev-parse --short HEAD'.execute(null, rootDir).text.trim()
+
+            def gitHash = providers.exec {
+                commandLine 'git', 'rev-parse', '--short', 'HEAD'
+            }.standardOutput.asText.get().trim()
 
             outputFileName = "KeyAttestation-v${version}-${gitHash}-${buildType}.apk"
         }
