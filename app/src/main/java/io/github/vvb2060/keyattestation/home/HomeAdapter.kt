@@ -94,37 +94,32 @@ class HomeAdapter(listener: Listener) : IdBasedRecyclerViewAdapter() {
             addItem(CommonItemViewHolder.CERT_INFO_CREATOR, certInfo, id++)
         }
 
-                // Add revocation list information
+        // Add revocation list information with source status
         val publishTime = io.github.vvb2060.keyattestation.attestation.RevocationList.getPublishTime()
-        var dateStr = if (publishTime != null) {
-            io.github.vvb2060.keyattestation.attestation.AuthorizationList.formatDate(publishTime)
-        } else {
-            null
-        }
-
-                // Add the Source Indicator
         val source = io.github.vvb2060.keyattestation.attestation.RevocationList.getCurrentSource()
         val app = io.github.vvb2060.keyattestation.AppApplication.app
-        
-        val sourceSuffix = when (source) {
-            RevocationList.DataSource.CACHE -> " " + app.getString(R.string.cert_error_revoked_cached)
-            RevocationList.DataSource.BUNDLED -> " " + app.getString(R.string.cert_error_revoked_offline)
-            else -> "" // NETWORK doesn't need a suffix
+
+        val dateStr = publishTime?.let {
+            io.github.vvb2060.keyattestation.attestation.AuthorizationList.formatDate(it)
+        } ?: ""
+
+        val statusLine = when (source) {
+            RevocationList.DataSource.NETWORK -> app.getString(R.string.revocation_status_fetch_success)
+            RevocationList.DataSource.CACHE -> app.getString(R.string.revocation_status_offline_cached)
+            RevocationList.DataSource.BUNDLED -> app.getString(R.string.revocation_status_offline_bundled)
+            else -> ""
         }
 
-        var dateDisplay = if (publishTime != null) {
-            io.github.vvb2060.keyattestation.attestation.AuthorizationList.formatDate(publishTime) + sourceSuffix
-        } else if (source == RevocationList.DataSource.BUNDLED || source == RevocationList.DataSource.CACHE) {
-            sourceSuffix.trim()
+        val dateDisplay = if (dateStr.isNotEmpty()) {
+            "$dateStr\n$statusLine"
         } else {
-            null
-        }
+            statusLine
+        }.trim().ifEmpty { null }
 
         addItem(CommonItemViewHolder.COMMON_CREATOR, CommonData(
                 R.string.revocation_list_publish_time,
                 R.string.revocation_list_description,
                 dateDisplay), ID_REVOCATION_INFO)
-
 
         when (baseData) {
             is AttestationData -> updateData(baseData)
