@@ -1,6 +1,14 @@
 name: Build
 
-on: [ push, pull_request, workflow_dispatch ]
+on:
+  push:
+    branches:
+      - main
+      - '*' # Triggers on any branch push
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
