@@ -39,14 +39,18 @@ jobs:
       - name: Build with Gradle
         run: |
           if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            ./gradlew assembleRelease
+            ./gradlew clean assembleRelease
           else
-            ./gradlew assembleDebug
+            ./gradlew clean assembleDebug
           fi
+
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: KeyAttestation-${{ github.ref_name }}-${{ github.event.inputs.build_type || 'debug' }}
-          # This wildcard will catch either the -debug.apk or the -release.apk
-          path: app/build/outputs/apk/**/*.apk
+          # Points specifically to where Gradle outputs your named files
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+
