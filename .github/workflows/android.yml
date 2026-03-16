@@ -8,7 +8,20 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
+    workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Select Build Type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+      version_tag:
+        description: 'Manual Version Tag'
+        required: false
+        default: 'manual'
 
 jobs:
   build:
