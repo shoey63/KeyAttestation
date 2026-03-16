@@ -36,7 +36,7 @@ android {
         minSdk = 24
         targetSdk = 35
         versionCode = gitCommitCount
-        versionName = '1.8.4'
+        versionName = '1.9.1'
         resourceConfigurations += supportedLocales
         optimization {
             keepRules {
