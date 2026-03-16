@@ -72,18 +72,27 @@ public class CertificateInfo {
             status = CERT_REVOKED;
             var certStatus = RevocationList.get(cert.getSerialNumber());
             if (certStatus != null) {
-                // Start with the base status from the JSON
-                StringBuilder message = new StringBuilder("status is " + certStatus.status());
-                
-                // Append the source suffix from strings.xml
-                if (certStatus.source() == RevocationList.DataSource.CACHE) {
-                    message.append(AppApplication.app.getString(R.string.cert_error_revoked_cached));
-                } else if (certStatus.source() == RevocationList.DataSource.BUNDLED) {
-                    message.append(AppApplication.app.getString(R.string.cert_error_revoked_offline));
-                }
-                
-                throw new CertificateException(message.toString());
-            }
+    String status = certStatus.status();
+    String suffix = "";
+    
+    // Determine the suffix based on the data source
+    switch (certStatus.source()) {
+        case CACHE:
+            suffix = "  " + AppApplication.app.getString(R.string.revocation_status_offline_cached);
+            break;
+        case BUNDLED:
+            suffix = "  " + AppApplication.app.getString(R.string.revocation_status_offline_bundled);
+            break;
+        case NETWORK:
+            // We can leave NETWORK empty or add a success indicator if desired
+            // suffix = "  " + AppApplication.app.getString(R.string.revocation_status_fetch_success);
+            break;
+    }
+    
+    // Throw the exception with the combined message
+    // This is what appears in the "Revocation Status" row of the certificate details
+    throw new CertificateException(status + suffix);
+}
             status = CERT_EXPIRED;
             cert.checkValidity();
             status = CERT_NORMAL;
