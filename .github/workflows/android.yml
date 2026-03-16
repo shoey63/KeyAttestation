@@ -18,10 +18,6 @@ on:
         options:
           - debug
           - release
-      version_tag:
-        description: 'Manual Version Tag'
-        required: false
-        default: 'manual'
 
 jobs:
   build:
