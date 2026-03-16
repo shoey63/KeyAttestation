@@ -1,8 +1,27 @@
-name: APK Build
+name: Build
 
 on:
-  workflow_dispatch:
   push:
+    branches:
+      - main
+      - '*' # Triggers on any branch push
+  pull_request:
+    branches:
+      - main
+    workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Select Build Type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+      version_tag:
+        description: 'Manual Version Tag'
+        required: false
+        default: 'manual'
 
 jobs:
   build:
@@ -21,11 +40,17 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
+      - name: Build with Gradle
+        run: |
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+            ./gradlew assembleRelease
+          else
+            ./gradlew assembleDebug
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ github.ref_name }}
-          path: app/build/outputs/apk/debug/*.apk
+          name: KeyAttestation-${{ github.ref_name }}-${{ github.event.inputs.build_type || 'debug' }}
+          # This wildcard will catch either the -debug.apk or the -release.apk
+          path: app/build/outputs/apk/**/*.apk
