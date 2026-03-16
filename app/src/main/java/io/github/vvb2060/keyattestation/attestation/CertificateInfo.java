@@ -65,34 +65,34 @@ public class CertificateInfo {
         issuer = RootPublicKey.check(publicKey);
     }
 
-            private void checkStatus(PublicKey parentKey) {
+    private void checkStatus(PublicKey parentKey) {
         try {
             status = CERT_SIGN;
             cert.verify(parentKey);
+            
             status = CERT_REVOKED;
             var certStatus = RevocationList.get(cert.getSerialNumber());
             if (certStatus != null) {
-    String status = certStatus.status();
-    String suffix = "";
-    
-    // Determine the suffix based on the data source
-    switch (certStatus.source()) {
-        case CACHE:
-            suffix = "  " + AppApplication.app.getString(R.string.revocation_status_offline_cached);
-            break;
-        case BUNDLED:
-            suffix = "  " + AppApplication.app.getString(R.string.revocation_status_offline_bundled);
-            break;
-        case NETWORK:
-            // We can leave NETWORK empty or add a success indicator if desired
-            // suffix = "  " + AppApplication.app.getString(R.string.revocation_status_fetch_success);
-            break;
-    }
-    
-    // Throw the exception with the combined message
-    // This is what appears in the "Revocation Status" row of the certificate details
-    throw new CertificateException(status + suffix);
-}
+                String statusMsg = certStatus.status();
+                String suffix = "";
+
+                // Determine the suffix based on the data source
+                switch (certStatus.source()) {
+                    case CACHE:
+                        suffix = "  " + AppApplication.app.getString(R.string.revocation_status_offline_cached);
+                        break;
+                    case BUNDLED:
+                        suffix = "  " + AppApplication.app.getString(R.string.revocation_status_offline_bundled);
+                        break;
+                    case NETWORK:
+                    default:
+                        break;
+                }
+
+                // Throw the exception with the combined message
+                throw new CertificateException(statusMsg + suffix);
+            }
+            
             status = CERT_EXPIRED;
             cert.checkValidity();
             status = CERT_NORMAL;
@@ -106,11 +106,6 @@ public class CertificateInfo {
         boolean terminate;
         try {
             attestation = Attestation.loadFromCertificate(cert);
-            // If key purpose included KeyPurpose::SIGN,
-            // then it could be used to sign arbitrary data, including any tbsCertificate,
-            // and so an attestation produced by the key would have no security properties.
-            // If the parent certificate can attest that the key purpose is only KeyPurpose::ATTEST_KEY,
-            // then the child certificate can be trusted.
             var purposes = attestation.getTeeEnforced().getPurposes();
             terminate = purposes == null || !purposes.contains(AuthorizationList.KM_PURPOSE_ATTEST_KEY);
         } catch (CertificateParsingException e) {
