@@ -162,3 +162,15 @@ abstract class ClassVisitorFactory implements AsmClassVisitorFactory<Instrumenta
         return classData.className.startsWith("io.github.vvb2060.keyattestation.keystore.")
     }
 }
+
+android {
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def version = variant.versionName
+            def buildType = variant.buildType.name
+            def gitHash = 'git rev-parse --short HEAD'.execute(null, rootDir).text.trim()
+
+            outputFileName = "KeyAttestation-v${version}-${gitHash}-${buildType}.apk"
+        }
+    }
+}
