@@ -59,7 +59,7 @@
     
     <string name="revocation_status_fetch_success">✅ CRL Fetch success</string>
     <string name="revocation_status_offline_cached">⚠️ Device offline - using cached CRL</string>
-    <string name="revocation_status_offline_bundled">⚠️ Device offline - no cached CRL</string>
+    <string name="revocation_status_offline_bundled">❌ Offline - using hardcoded 27th Feb CRL</string>
     
     <string name="cert_error_revoked_cached"> (cached)</string>
     <string name="cert_error_revoked_offline"> (offline)</string>
