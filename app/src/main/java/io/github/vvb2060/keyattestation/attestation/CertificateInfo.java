@@ -102,15 +102,6 @@ public class CertificateInfo {
         }
     }
 
-            status = CERT_EXPIRED;
-            cert.checkValidity();
-            status = CERT_NORMAL;
-        } catch (GeneralSecurityException e) {
-            Log.e(AppApplication.TAG, "checkStatus", e);
-            securityException = e;
-        }
-    }
-
     private boolean checkAttestation() {
         boolean terminate;
         try {
