@@ -187,6 +187,22 @@ public record RevocationList(String status, String reason, DataSource source) {
             }
         }
     }
+
+    public static RevocationList get(BigInteger serialNumber) {
+        if (data == null) {
+            synchronized (RevocationList.class) {
+                if (data == null) {
+                    StatusResult result = getStatus();
+                    data = result.json();
+                    
+                    if (currentSource == DataSource.NETWORK_UPDATE && result.source() == DataSource.NETWORK_UP_TO_DATE) {
+                        Log.i(TAG, "Preserving NETWORK_UPDATE status in get()");
+                    } else {
+                        currentSource = result.source();
+                    }
+                }
+            }
+        }
         String serial = serialNumber.toString(16).toLowerCase();
         try {
             JSONObject entry = data.getJSONObject(serial);
