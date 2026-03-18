@@ -111,23 +111,140 @@ public record RevocationList(String status, String reason, DataSource source) {
             if (!statusUrl.equals(url) && url.toLowerCase(Locale.ROOT).startsWith("https")) {
                 statusUrl = url;
             }
+public record RevocationList(String status, String reason, DataSource source) {
+    public enum DataSource {
+        NETWORK_UPDATE,     // Fetched a new file (HTTP 200)
+        NETWORK_UP_TO_DATE, // Checked network, cache is newest (HTTP 304)
+        CACHE,              // Device offline, used cache
+        BUNDLED             // Device offline, no cache, used bundled
+    }
+
+    private static final String TAG = "RevocationList";
+    private static final String CACHE_FILE = "revocation_cache.json";
+    private static final String PREFS_NAME = "revocation_prefs";
+    private static final String KEY_PUBLISH_TIME = "last_publish_time";
+    
+    private static JSONObject data = null;
+    private static Date publishTime = null;
+    private static DataSource currentSource = DataSource.BUNDLED;
+
+    private record StatusResult(JSONObject json, DataSource source) {}
+    private record NetworkResult(JSONObject json, int responseCode) {}
+
+    private static String toString(InputStream input) throws IOException {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        } else {
+            var output = new ByteArrayOutputStream(8192);
+            var buffer = new byte[8192];
+            for (int length; (length = input.read(buffer)) != -1; ) {
+                output.write(buffer, 0, length);
+            }
+            return output.toString();
+        }
+    }
+
+    private static JSONObject parseStatus(InputStream inputStream) throws IOException {
+        try {
+            return new JSONObject(toString(inputStream));
+        } catch (JSONException e) {
+            throw new IOException(e);
+        }
+    }
+
+    private static void saveToCache(JSONObject fullJson) {
+        try (var output = AppApplication.app.openFileOutput(CACHE_FILE, Context.MODE_PRIVATE)) {
+            output.write(fullJson.toString().getBytes(StandardCharsets.UTF_8));
+            if (publishTime != null) {
+                var prefs = AppApplication.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                prefs.edit().putLong(KEY_PUBLISH_TIME, publishTime.getTime()).apply();
+            }
+        } catch (IOException e) {
+            Log.w(TAG, "Failed to cache revocation list", e);
+        }
+    }
+
+    private static NetworkResult fetchFromNetwork(String statusUrl, long cachedTime) {
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(statusUrl);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(10000);
+            connection.setRequestProperty("User-Agent", "KeyAttestation");
+            
+            // Ask server if file was modified since our cached time
+            if (cachedTime != 0) {
+                connection.setIfModifiedSince(cachedTime);
+            }
+            
+            int responseCode = connection.getResponseCode();
+            
+            // Server confirms our cached file is the newest version
+            if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
+                return new NetworkResult(null, responseCode);
+            }
+            
+            // Server has a newer file
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                long lastModified = connection.getLastModified();
+                if (lastModified != 0) {
+                    publishTime = new Date(lastModified);
+                }
+                try (var input = connection.getInputStream()) {
+                    return new NetworkResult(parseStatus(input), responseCode);
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            Log.w(TAG, "Network fetch failed", e);
+            return null;
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private static StatusResult getStatus() {
+        var statusUrl = "https://android.googleapis.com/attestation/status";
+        var res = AppApplication.app.getResources();
+        var resName = "android:string/vendor_required_attestation_revocation_list_url";
+        var id = res.getIdentifier(resName, null, null);
+        if (id != 0) {
+            var url = res.getString(id);
+            if (!statusUrl.equals(url) && url.toLowerCase(Locale.ROOT).startsWith("https")) {
+                statusUrl = url;
+            }
+        }
+
+        var prefs = AppApplication.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        long cachedTime = prefs.getLong(KEY_PUBLISH_TIME, 0);
+        
+        // 1. Network Check
+        NetworkResult networkResult = fetchFromNetwork(statusUrl, cachedTime);
+        if (networkResult != null) {
+            if (networkResult.responseCode() == HttpURLConnection.HTTP_NOT_MODIFIED) {
+                // Read from cache, but source is NETWORK_UP_TO_DATE
+                try (var fis = AppApplication.app.openFileInput(CACHE_FILE)) {
+                    var cacheJson = parseStatus(fis);
+                    publishTime = new Date(cachedTime);
+                    return new StatusResult(cacheJson.getJSONObject("entries"), DataSource.NETWORK_UP_TO_DATE);
+                } catch (Exception e) {
+                    Log.w(TAG, "Failed to read cache despite 304 response. Falling back.", e);
+                }
+            } else if (networkResult.json() != null) {
+                // Save new payload, source is NETWORK_UPDATE
+                saveToCache(networkResult.json());
+                try {
+                    return new StatusResult(networkResult.json().getJSONObject("entries"), DataSource.NETWORK_UPDATE);
+                } catch (JSONException ignored) {}
+            }
         }
         
-        // 1. Network
-        JSONObject networkJson = fetchFromNetwork(statusUrl);
-        if (networkJson != null) {
-            saveToCache(networkJson);
-            try {
-                return new StatusResult(networkJson.getJSONObject("entries"), DataSource.NETWORK);
-            } catch (JSONException ignored) {}
-        }
-        
-        // 2. Cache
+        // 2. Cache (Offline Fallback)
         try (var fis = AppApplication.app.openFileInput(CACHE_FILE)) {
             var cacheJson = parseStatus(fis);
-            var prefs = AppApplication.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-            long lastTime = prefs.getLong(KEY_PUBLISH_TIME, 0);
-            if (lastTime != 0) publishTime = new Date(lastTime);
+            if (cachedTime != 0) publishTime = new Date(cachedTime);
             return new StatusResult(cacheJson.getJSONObject("entries"), DataSource.CACHE);
         } catch (Exception e) {
             Log.i(TAG, "Cache unavailable");
@@ -136,7 +253,6 @@ public record RevocationList(String status, String reason, DataSource source) {
         // 3. Bundled
         try (var input = res.openRawResource(R.raw.status)) {
             var bundledJson = parseStatus(input);
-            // Bundled data has no publishTime from headers
             publishTime = null; 
             return new StatusResult(bundledJson.getJSONObject("entries"), DataSource.BUNDLED);
         } catch (Exception e) {
