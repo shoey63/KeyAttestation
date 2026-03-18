@@ -177,20 +177,16 @@ public record RevocationList(String status, String reason, DataSource source) {
         synchronized (RevocationList.class) {
             StatusResult result = getStatus();
             data = result.json();
-            currentSource = result.source();
-        }
-    }
-
-    public static RevocationList get(BigInteger serialNumber) {
-        if (data == null) {
-            synchronized (RevocationList.class) {
-                if (data == null) {
-                    StatusResult result = getStatus();
-                    data = result.json();
-                    currentSource = result.source();
-                }
+            
+            // If we successfully fetched a brand new file this session, 
+            // don't let a subsequent UI refresh overwrite our status with a 304!
+            if (currentSource == DataSource.NETWORK_UPDATE && result.source() == DataSource.NETWORK_UP_TO_DATE) {
+                Log.i(TAG, "Preserving NETWORK_UPDATE status across multiple refreshes");
+            } else {
+                currentSource = result.source();
             }
         }
+    }
         String serial = serialNumber.toString(16).toLowerCase();
         try {
             JSONObject entry = data.getJSONObject(serial);
