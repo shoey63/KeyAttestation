@@ -1,7 +1,6 @@
 package io.github.vvb2060.keyattestation.attestation;
 
 import android.util.Log;
-import io.github.vvb2060.keyattestation.R;
 
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
