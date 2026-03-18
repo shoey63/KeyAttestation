@@ -104,7 +104,8 @@ class HomeAdapter(listener: Listener) : IdBasedRecyclerViewAdapter() {
         } ?: ""
 
         val statusLine = when (source) {
-            RevocationList.DataSource.NETWORK -> app.getString(R.string.revocation_status_fetch_success)
+            RevocationList.DataSource.NETWORK_UPDATE -> app.getString(R.string.revocation_status_new_fetch)
+            RevocationList.DataSource.NETWORK_UP_TO_DATE -> app.getString(R.string.revocation_status_up_to_date)
             RevocationList.DataSource.CACHE -> app.getString(R.string.revocation_status_offline_cached)
             RevocationList.DataSource.BUNDLED -> app.getString(R.string.revocation_status_offline_bundled)
             else -> ""
