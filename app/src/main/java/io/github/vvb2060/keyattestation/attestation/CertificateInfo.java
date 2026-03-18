@@ -73,8 +73,24 @@ public class CertificateInfo {
             status = CERT_REVOKED;
             var certStatus = RevocationList.get(cert.getSerialNumber());
             if (certStatus != null) {
-                // Just throw the status message (e.g., "REVOKED") without any suffix
-                throw new CertificateException(certStatus.status());
+                String statusMsg = certStatus.status();
+                String suffix = "";
+
+                // Determine the suffix based on the data source
+                switch (certStatus.source()) {
+                    case CACHE:
+                        suffix = "  " + AppApplication.app.getString(R.string.revocation_status_offline_cached);
+                        break;
+                    case BUNDLED:
+                        suffix = "  " + AppApplication.app.getString(R.string.revocation_status_offline_bundled);
+                        break;
+                    case NETWORK:
+                    default:
+                        break;
+                }
+
+                // Throw the exception with the combined message
+                throw new CertificateException(statusMsg + suffix);
             }
             
             status = CERT_EXPIRED;
