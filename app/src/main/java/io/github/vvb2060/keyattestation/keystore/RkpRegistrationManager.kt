@@ -52,11 +52,26 @@ object RkpRegistrationManager {
         }
     }
 
-    private fun getSupportedHal(): String? {
-        val process = Shizuku.newProcess(arrayOf("cmd", "remote_provisioning", "list"), null, null)
+    // Shizuku recently made newProcess private to encourage using UserService, 
+    // but we can cleanly bypass it with reflection for these simple shell commands.
+    private fun runShizukuCommand(vararg command: String): String {
+        val clazz = Class.forName("rikka.shizuku.Shizuku")
+        val method = clazz.getDeclaredMethod(
+            "newProcess",
+            Array<String>::class.java,
+            Array<String>::class.java,
+            String::class.java
+        )
+        method.isAccessible = true // The magic line that bypasses the 'private' restriction
+        
+        val process = method.invoke(null, arrayOf(*command), null, null) as rikka.shizuku.ShizukuRemoteProcess
         val output = BufferedReader(InputStreamReader(process.inputStream)).readText()
         process.waitFor()
+        return output
+    }
 
+    private fun getSupportedHal(): String? {
+        val output = runShizukuCommand("cmd", "remote_provisioning", "list")
         return when {
             output.contains("default") -> "default"
             output.contains("strongbox") -> "strongbox"
@@ -65,9 +80,7 @@ object RkpRegistrationManager {
     }
 
     private fun getCsr(hal: String): String? {
-        val process = Shizuku.newProcess(arrayOf("cmd", "remote_provisioning", "csr", hal), null, null)
-        val output = BufferedReader(InputStreamReader(process.inputStream)).readText().trim()
-        process.waitFor()
+        val output = runShizukuCommand("cmd", "remote_provisioning", "csr", hal).trim()
         return output.ifEmpty { null }
     }
 
