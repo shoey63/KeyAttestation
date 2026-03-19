@@ -94,12 +94,12 @@
 	<item
         android:id="@+id/menu_rkp_register"
         android:title="@string/rkp_register"
-        app:showAsAction="never" />
+        android:showAsAction="never" />
 
     <item
         android:id="@+id/menu_rkp_unregister"
         android:title="@string/rkp_unregister"
-        app:showAsAction="never" />
+        android:showAsAction="never" />
 
     <item
         android:id="@+id/menu_reset"
