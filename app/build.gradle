@@ -70,7 +70,7 @@ android {
             minifyEnabled true
             shrinkResources true
             vcsInfo.include false
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
             proguardFiles 'proguard-rules.pro'
         }
     }
