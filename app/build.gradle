@@ -36,7 +36,7 @@ android {
         minSdk = 24
         targetSdk = 35
         versionCode = gitCommitCount
-        versionName = '2.0.0'
+        versionName = '2.0.1'
         resourceConfigurations += supportedLocales
         optimization {
             keepRules {
@@ -54,24 +54,18 @@ android {
                 keyPassword properties.getProperty("keyPassword")
             }
         }
-        release {
-            def sFile = System.getenv("STORE_FILE") ?: properties.getProperty("storeFile") ?: "Vision.jks"
-            storeFile file(sFile)
-            storePassword System.getenv("STORE_PASSWORD") ?: properties.getProperty("storePassword")
-            keyAlias System.getenv("KEY_ALIAS") ?: properties.getProperty("keyAlias")
-            keyPassword System.getenv("KEY_PASSWORD") ?: properties.getProperty("keyPassword")
-        }
     }
     buildTypes {
         debug {
-            versionNameSuffix '-debug'
+            // versionNameSuffix '-debug'
         }
         release {
             minifyEnabled true
             shrinkResources true
             vcsInfo.include false
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
             proguardFiles 'proguard-rules.pro'
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -167,5 +161,20 @@ abstract class ClassVisitorFactory implements AsmClassVisitorFactory<Instrumenta
 
     boolean isInstrumentable(ClassData classData) {
         return classData.className.startsWith("io.github.vvb2060.keyattestation.keystore.")
+    }
+}
+
+android {
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def version = variant.versionName
+            def buildType = variant.buildType.name
+
+            def gitHash = providers.exec {
+                commandLine 'git', 'rev-parse', '--short', 'HEAD'
+            }.standardOutput.asText.get().trim()
+
+            outputFileName = "KeyAttestation-v${version}-${gitHash}-${buildType}.apk"
+        }
     }
 }
