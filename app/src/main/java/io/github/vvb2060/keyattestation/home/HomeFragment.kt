@@ -34,7 +34,6 @@ import io.github.vvb2060.keyattestation.keystore.KeyStoreManager
 import io.github.vvb2060.keyattestation.keystore.RkpRegistrationManager
 import io.github.vvb2060.keyattestation.lang.AttestationException
 import io.github.vvb2060.keyattestation.repository.AttestationData
-import io.github.vvb2060.keyattestation.repository.Data
 import io.github.vvb2060.keyattestation.util.ColorManager
 import io.github.vvb2060.keyattestation.util.LocaleManager
 import io.github.vvb2060.keyattestation.util.Status
@@ -145,7 +144,7 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
             .show()
     }
 
-    override fun onCommonDataClick(data: Data) {
+    override fun onCommonDataClick(data: HomeAdapter.Data) {
         val context = requireActivity()
 
         AlertDialogFragment.Builder(context)
