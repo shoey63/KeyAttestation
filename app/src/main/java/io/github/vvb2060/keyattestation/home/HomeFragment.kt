@@ -144,7 +144,7 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
             .show()
     }
 
-    override fun onCommonDataClick(data: HomeAdapter.Data) {
+    override fun onCommonDataClick(data: Data) {
         val context = requireActivity()
 
         AlertDialogFragment.Builder(context)
@@ -181,12 +181,12 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
         menu.findItem(R.id.menu_rkp_test).isVisible =
             viewModel.preferShizuku && viewModel.canCheckRkp
 
-        menu.findItem(R.id.menu_rkp_register)?.isVisible = 
+		menu.findItem(R.id.menu_rkp_register)?.isVisible = 
             viewModel.preferShizuku && viewModel.canCheckRkp
             
         menu.findItem(R.id.menu_rkp_unregister)?.isVisible = 
             viewModel.preferShizuku && viewModel.canCheckRkp
-        
+		
         menu.findItem(R.id.menu_use_sak)?.isVisible =
             viewModel.preferShizuku && viewModel.canSak
 
@@ -239,12 +239,12 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
                 LocaleManager.showLanguagePickerDialog(requireContext())
                 return true
             }
-            
+			
             R.id.menu_color -> {
                 ColorManager.showColorPickerDialog(requireActivity())
                 return true
             }
-        
+		
             R.id.menu_secret_mode -> {
                 viewModel.secretMode = status
                 viewModel.load()
@@ -269,7 +269,7 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
                 viewModel.preferAttestKey = status
                 viewModel.load()
             }
-            
+			
             R.id.menu_attest_rsa_key -> {
                 viewModel.preferAttestRsaKey = status
                 viewModel.load()
@@ -303,7 +303,7 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
             R.id.menu_rkp_test -> {
                 viewModel.rkp()
             }
-            
+			
             R.id.menu_rkp_register -> {
                 handleRkpAction(RkpRegistrationManager.Action.REGISTER)
             }
@@ -392,5 +392,6 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
             movementMethod = LinkMovementMethod.getInstance()
             this.text = text.toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE)
         }
+
     }
 }
