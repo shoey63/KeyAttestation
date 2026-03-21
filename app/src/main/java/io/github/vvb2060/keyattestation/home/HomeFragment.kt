@@ -255,6 +255,11 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
                 viewModel.load()
             }
 
+			R.id.menu_rkp_dump -> {
+            handleDumpAction()
+            true
+            }
+
             R.id.menu_use_sak -> {
                 viewModel.preferSak = status
                 viewModel.load()
