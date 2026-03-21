@@ -30,11 +30,6 @@ object RkpRegistrationManager {
             return@withContext Result.Error("Shizuku is not running or permission denied.")
         }
 
-        // Defense in Depth: Layer 2 - Ensure backend isn't tricked by a UI bypass
-        if (Shizuku.getUid() != 0) {
-            return@withContext Result.Error("Root access strictly required. Shizuku is currently running in ADB/Shell mode.")
-        }
-
         try {
             // 1. Find the supported HAL
             val hal = getSupportedHal()
