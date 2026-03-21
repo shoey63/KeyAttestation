@@ -96,16 +96,29 @@ object RkpRegistrationManager {
     
     private fun runCommandAndCaptureOutput(command: String): String {
         return try {
-          val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+        // The Shizuku.newProcess API is hidden in recent versions, so we bypass it via reflection
+            val clazz = Class.forName("rikka.shizuku.Shizuku")
+            val method = clazz.getDeclaredMethod(
+                "newProcess", 
+                Array<String>::class.java, 
+                Array<String>::class.java, 
+                String::class.java
+            )
+            method.isAccessible = true
+        
+            // Execute the shell command and cast the result to a standard Java Process
+            val process = method.invoke(null, arrayOf("sh", "-c", command), null, null) as java.lang.Process
+        
             // Capture the standard output
-          val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
-          val output = reader.readText().trim()
+            val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
+            val output = reader.readText().trim()
             process.waitFor()
             output
         } catch (e: Exception) {
             "Error executing command: ${e.message}"
         }
-    } 
+    }
+
 
     suspend fun dumpCertChains(): Result {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
