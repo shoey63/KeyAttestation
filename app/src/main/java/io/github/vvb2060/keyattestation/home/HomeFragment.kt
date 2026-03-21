@@ -338,22 +338,48 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
     }
 
     private fun handleRkpAction(action: RkpRegistrationManager.Action) {
-        val title = if (action == RkpRegistrationManager.Action.REGISTER) 
-            "Register RKP Root" else "Unregister RKP Root"
+        val isRegister = action == RkpRegistrationManager.Action.REGISTER
+        val actionName = if (isRegister) "register" else "unregister"
+        val title = if (isRegister) "Register RKP Root" else "Unregister RKP Root"
 
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(title)
-            .setMessage("This feature requires Root access via Shizuku to execute the system commands.\n\nNotice: If you are not rooted, this action will likely fail to execute. If it does succeed, you will be unable to revert the change without a Full Factory Reset as the RKPD cache cannot be cleared without root. Proceed?")
-            .setPositiveButton("Proceed") { _, _ ->
-                viewLifecycleOwner.lifecycleScope.launch {
-                    val result = RkpRegistrationManager.performAction(action)
-                    val msg = when (result) {
-                        is RkpRegistrationManager.Result.Success -> result.message
-                        is RkpRegistrationManager.Result.Error -> result.message
+        // 1. Verify Shizuku is active and our app has permission
+        if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+
+            // 2. The Bouncer: Verify Shizuku is running as UID 0 (Root)
+            if (Shizuku.getUid() == 0) {
+                // THE HAPPY PATH: Confirmed Root
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(title)
+                    .setMessage("This will $actionName the RKP Root and clear all stored RKP keys. Your next attestation test will automatically fetch a fresh certificate chain. Proceed?")
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton("PROCEED") { _, _ ->
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val result = RkpRegistrationManager.performAction(action)
+                            val msg = when (result) {
+                                is RkpRegistrationManager.Result.Success -> result.message
+                                is RkpRegistrationManager.Result.Error -> result.message
+                            }
+                            Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
+                        }
                     }
-                    Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
-                }
+                    .show()
+            } else {
+                // THE EDGE CASE: Confirmed ADB/Shell (UID 2000)
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Root Access Required")
+                    .setMessage("Action Blocked: Shizuku is currently running in ADB/Shell mode. Root access is strictly required to safely $actionName and clear the RKP keys without a Full Factory Reset.")
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
             }
+        } else {
+            // THE FALLBACK: Shizuku crashed or permission revoked
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Shizuku Unavailable")
+                .setMessage("Shizuku is not running or permission is denied. Please ensure Shizuku is active with root privileges.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+        }
+    }		
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
