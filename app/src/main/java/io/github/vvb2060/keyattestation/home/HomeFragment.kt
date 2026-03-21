@@ -376,6 +376,26 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
                 .show()
         }
     }
+
+    private fun handleDumpAction() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            android.widget.Toast.makeText(requireContext(), "Dumping RKP Chains...", android.widget.Toast.LENGTH_SHORT).show()
+            
+            val result = io.github.vvb2060.keyattestation.keystore.RkpRegistrationManager.dumpCertChains()
+            
+            if (result is io.github.vvb2060.keyattestation.keystore.RkpRegistrationManager.Result.Success) {
+                val sendIntent = android.content.Intent().apply {
+                    action = android.content.Intent.ACTION_SEND
+                    putExtra(android.content.Intent.EXTRA_TEXT, result.message)
+                    type = "text/plain"
+                }
+                val shareIntent = android.content.Intent.createChooser(sendIntent, "Share RKP Dump")
+                startActivity(shareIntent)
+            } else if (result is io.github.vvb2060.keyattestation.keystore.RkpRegistrationManager.Result.Error) {
+                android.widget.Toast.makeText(requireContext(), result.message, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }		
 		
     private fun showAboutDialog() {
         val context = requireContext()
