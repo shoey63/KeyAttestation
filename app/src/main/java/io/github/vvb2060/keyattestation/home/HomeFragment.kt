@@ -380,9 +380,6 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
                 .show()
         }
     }		
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
 
     private fun showAboutDialog() {
         val context = requireContext()
