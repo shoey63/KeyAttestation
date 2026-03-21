@@ -25,8 +25,14 @@ object RkpRegistrationManager {
     }
 
     suspend fun performAction(action: Action): Result = withContext(Dispatchers.IO) {
+        // Defense in Depth: Layer 1
         if (!Shizuku.pingBinder()) {
             return@withContext Result.Error("Shizuku is not running or permission denied.")
+        }
+
+        // Defense in Depth: Layer 2 - Ensure backend isn't tricked by a UI bypass
+        if (Shizuku.getUid() != 0) {
+            return@withContext Result.Error("Root access strictly required. Shizuku is currently running in ADB/Shell mode.")
         }
 
         try {
@@ -46,9 +52,9 @@ object RkpRegistrationManager {
             // 4. Send the POST request
             val result = sendRequest(csrBytes, action.requestId)
 
-            // 5. Automatically clear the cache on success so the next test fetches fresh certs
+            // 5. Automatically clear the RKP keys on success so the next test fetches fresh certs
             if (result is Result.Success) {
-                clearRkpCache()
+                clearRkpKeys()
             }
 
             return@withContext result
@@ -60,7 +66,7 @@ object RkpRegistrationManager {
     }
 
     // Shizuku recently made newProcess private to encourage using UserService, 
-    // but we can cleanly bypass it with reflection for these simple shell commands.
+    // but we cleanly bypass it with reflection for these simple shell commands.
     private fun runShizukuCommand(vararg command: String): String {
         val clazz = Class.forName("rikka.shizuku.Shizuku")
         val method = clazz.getDeclaredMethod(
@@ -73,7 +79,14 @@ object RkpRegistrationManager {
         
         val process = method.invoke(null, arrayOf(*command), null, null) as rikka.shizuku.ShizukuRemoteProcess
         val output = BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }
-        process.waitFor()
+        val exitCode = process.waitFor()
+        
+        // Stop the logcat from lying to us on silent shell failures
+        if (exitCode != 0) {
+            val errorOutput = BufferedReader(InputStreamReader(process.errorStream)).use { it.readText() }
+            Log.w(TAG, "Command '${command.joinToString(" ")}' failed with code $exitCode: $errorOutput")
+        }
+        
         return output
     }
 
@@ -91,15 +104,16 @@ object RkpRegistrationManager {
         return output.ifEmpty { null }
     }
 
-    private fun clearRkpCache() {
+    private fun clearRkpKeys() {
         try {
+            Log.i(TAG, "Attempting to clear stored RKP keys...")
             // Try clearing both GMS and AOSP daemon packages. 
-            // It will silently fail on the one that doesn't exist, which is perfectly fine.
+            // It will exit with code 1 on the one that doesn't exist, which runShizukuCommand will cleanly log.
             runShizukuCommand("pm", "clear", "com.google.android.rkpdapp")
             runShizukuCommand("pm", "clear", "com.android.rkpd")
-            Log.i(TAG, "RKPD cache successfully cleared.")
+            Log.i(TAG, "RKP key clearing commands executed.")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to clear RKPD cache. A manual pm clear might be required.", e)
+            Log.w(TAG, "Failed to execute pm clear commands for RKP keys.", e)
         }
     }
 
