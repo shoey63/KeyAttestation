@@ -337,7 +337,7 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
         return true
     }
 
-    private fun handleRkpAction(action: RkpRegistrationManager.Action) {
+        private fun handleRkpAction(action: RkpRegistrationManager.Action) {
         val isRegister = action == RkpRegistrationManager.Action.REGISTER
         val actionName = if (isRegister) "register" else "unregister"
         val title = if (isRegister) "Register RKP Root" else "Unregister RKP Root"
@@ -345,42 +345,33 @@ class HomeFragment : AppFragment(), HomeAdapter.Listener, MenuProvider {
         // 1. Verify Shizuku is active and our app has permission
         if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
 
-            // 2. The Bouncer: Verify Shizuku is running as UID 0 (Root)
-            if (Shizuku.getUid() == 0) {
-                // THE HAPPY PATH: Confirmed Root
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(title)
-                    .setMessage("This will $actionName the RKP Root and clear all stored RKP keys. Your next attestation test will automatically fetch a fresh certificate chain. Proceed?")
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton("PROCEED") { _, _ ->
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            val result = RkpRegistrationManager.performAction(action)
-                            val msg = when (result) {
-                                is RkpRegistrationManager.Result.Success -> result.message
-                                is RkpRegistrationManager.Result.Error -> result.message
-                            }
-                            Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
+            // THE HAPPY PATH: Both Root (UID 0) and ADB (UID 2000) can execute pm clear!
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(title)
+                .setMessage("This will $actionName the RKP Root and clear all stored RKP keys.\n\nYour next attestation test will automatically fetch a fresh certificate chain. Proceed?")
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("PROCEED") { _, _ ->
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val result = RkpRegistrationManager.performAction(action)
+                        val msg = when (result) {
+                            is RkpRegistrationManager.Result.Success -> result.message
+                            is RkpRegistrationManager.Result.Error -> result.message
                         }
+                        Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
                     }
-                    .show()
-            } else {
-                // THE EDGE CASE: Confirmed ADB/Shell (UID 2000)
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Root Access Required")
-                    .setMessage("Action Blocked: Shizuku is currently running in ADB/Shell mode. Root access is strictly required to safely $actionName and clear the RKP keys without a Full Factory Reset.")
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
-            }
+                }
+                .show()
+            
         } else {
             // THE FALLBACK: Shizuku crashed or permission revoked
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Shizuku Unavailable")
-                .setMessage("Shizuku is not running or permission is denied. Please ensure Shizuku is active with root privileges.")
+                .setMessage("Shizuku is not running or permission is denied. Please ensure Shizuku is active (via Root or Wireless Debugging).")
                 .setPositiveButton(android.R.string.ok, null)
                 .show()
         }
-    }		
-
+    }
+		
     private fun showAboutDialog() {
         val context = requireContext()
         val text = StringBuilder()
