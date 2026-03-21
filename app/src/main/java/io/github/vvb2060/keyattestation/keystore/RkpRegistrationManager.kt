@@ -108,10 +108,10 @@ object RkpRegistrationManager {
     } 
 
     suspend fun dumpCertChains(): Result {
-        return kotlinx.coroutines.Dispatchers.IO.invoke {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             if (!Shizuku.pingBinder()) {
-              return@invoke Result.Error("Shizuku is not running.")
-        }
+                return@withContext Result.Error("Shizuku is not running.")
+            }
 
         val defaultOutput = runCommandAndCaptureOutput("cmd remote_provisioning certify default")
         val strongboxOutput = runCommandAndCaptureOutput("cmd remote_provisioning certify strongbox")
