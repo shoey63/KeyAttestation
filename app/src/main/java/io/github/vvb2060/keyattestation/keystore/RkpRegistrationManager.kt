@@ -93,6 +93,42 @@ object RkpRegistrationManager {
             else -> null
         }
     }
+    
+    private fun runCommandAndCaptureOutput(command: String): String {
+        return try {
+          val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+            // Capture the standard output
+          val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
+          val output = reader.readText().trim()
+            process.waitFor()
+            output
+        } catch (e: Exception) {
+            "Error executing command: ${e.message}"
+        }
+    } 
+
+    suspend fun dumpCertChains(): Result {
+        return kotlinx.coroutines.Dispatchers.IO.invoke {
+            if (!Shizuku.pingBinder()) {
+              return@invoke Result.Error("Shizuku is not running.")
+        }
+
+        val defaultOutput = runCommandAndCaptureOutput("cmd remote_provisioning certify default")
+        val strongboxOutput = runCommandAndCaptureOutput("cmd remote_provisioning certify strongbox")
+
+        val sb = java.lang.StringBuilder()
+        
+            sb.append("--- RKP DEFAULT HAL ---\n")
+            sb.append(defaultOutput.ifEmpty { "No Default HAL output or unsupported." })
+            sb.append("\n\n")
+        
+            sb.append("--- RKP STRONGBOX HAL ---\n")
+            sb.append(strongboxOutput.ifEmpty { "No Strongbox HAL output or unsupported." })
+
+        // Return the massive string payload in a Success wrapper
+            Result.Success(sb.toString())
+        }
+    } 
 
     private fun getCsr(hal: String): String? {
         val output = runShizukuCommand("cmd", "remote_provisioning", "csr", hal).trim()
