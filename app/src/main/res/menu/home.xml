@@ -124,6 +124,6 @@
 	<item
         android:id="@+id/menu_rkp_dump"
         android:title="Dump RKP Chains"
-        app:showAsAction="never" />
+        android:showAsAction="never" />
 
 </menu>
