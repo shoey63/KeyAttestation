@@ -94,17 +94,42 @@ class HomeAdapter(listener: Listener) : IdBasedRecyclerViewAdapter() {
             addItem(CommonItemViewHolder.CERT_INFO_CREATOR, certInfo, id++)
         }
 
-        // Add revocation list information
+        // Add revocation list information with source status
         val publishTime = io.github.vvb2060.keyattestation.attestation.RevocationList.getPublishTime()
-        val dateStr = if (publishTime != null) {
-            io.github.vvb2060.keyattestation.attestation.AuthorizationList.formatDate(publishTime)
+        val source = io.github.vvb2060.keyattestation.attestation.RevocationList.getCurrentSource()
+        val app = io.github.vvb2060.keyattestation.AppApplication.app
+
+        val dateStr = publishTime?.let {
+            io.github.vvb2060.keyattestation.attestation.AuthorizationList.formatDate(it)
+        } ?: ""
+        
+        val locales = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
+        val context = if (!locales.isEmpty) {
+        val config = android.content.res.Configuration(app.resources.configuration)
+            config.setLocale(locales[0])
+            app.createConfigurationContext(config)
         } else {
-            null
+            app
+        }       
+        
+        val statusLine = when (source) {
+            RevocationList.DataSource.NETWORK_UPDATE -> context.getString(R.string.revocation_status_new_fetch)
+            RevocationList.DataSource.NETWORK_UP_TO_DATE -> context.getString(R.string.revocation_status_up_to_date)
+            RevocationList.DataSource.CACHE -> context.getString(R.string.revocation_status_offline_cached)
+            RevocationList.DataSource.BUNDLED -> context.getString(R.string.revocation_status_offline_bundled)
+            else -> ""
         }
+
+        val dateDisplay = if (dateStr.isNotEmpty()) {
+            "$dateStr\n$statusLine"
+        } else {
+            statusLine
+        }.trim().ifEmpty { null }
+
         addItem(CommonItemViewHolder.COMMON_CREATOR, CommonData(
                 R.string.revocation_list_publish_time,
                 R.string.revocation_list_description,
-                dateStr), ID_REVOCATION_INFO)
+                dateDisplay), ID_REVOCATION_INFO)
 
         when (baseData) {
             is AttestationData -> updateData(baseData)
