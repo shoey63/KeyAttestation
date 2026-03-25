@@ -36,7 +36,7 @@ android {
         minSdk = 24
         targetSdk = 35
         versionCode = gitCommitCount
-        versionName = '2.0.1'
+        versionName = '2.0.1-shoey63-unofficial'
         resourceConfigurations += supportedLocales
         optimization {
             keepRules {
@@ -70,7 +70,7 @@ android {
             minifyEnabled true
             shrinkResources true
             vcsInfo.include false
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
             proguardFiles 'proguard-rules.pro'
         }
     }
