@@ -217,8 +217,7 @@ public record RevocationList(String status, String reason, DataSource source) {
                     
                     if ((currentSource == DataSource.NETWORK_UPDATE || currentSource == DataSource.NETWORK_INITIAL) && result.source() == DataSource.NETWORK_UP_TO_DATE) {
                         Log.i(TAG, "Preserving NETWORK_UPDATE status in get()");
-                    } else {            if ((currentSource == DataSource.NETWORK_UPDATE || currentSource == DataSource.NETWORK_INITIAL) && result.source() == DataSource.NETWORK_UP_TO_DATE) {
-
+                    } else {
                         currentSource = result.source();
                     }
                 }
