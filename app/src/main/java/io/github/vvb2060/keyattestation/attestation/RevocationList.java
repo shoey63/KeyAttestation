@@ -84,6 +84,15 @@ public record RevocationList(String status, String reason, DataSource source) {
             connection.setReadTimeout(10000);
             connection.setRequestProperty("User-Agent", "KeyAttestation");
             
+            double rand = Math.round(Math.random() * 1000.0) / 1000.0;
+            
+            // Force the CDN to bypass edge caches
+            connection.setRequestProperty("Cache-Control", "no-cache, no-store, no-transform, max-age=0");
+            connection.setRequestProperty("Accept", "application/json, */*;q=" + rand);
+            connection.setRequestProperty("Accept-Encoding", "identity, *;q=" + rand);
+            connection.setRequestProperty("Accept-Ranges", "bytes");
+            
+            // Standard conditional GET for bandwidth saving (if the node IS synced)
             if (cachedTime != 0) {
                 connection.setIfModifiedSince(cachedTime);
             }
