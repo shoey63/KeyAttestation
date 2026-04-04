@@ -36,7 +36,7 @@ android {
         minSdk = 24
         targetSdk = 35
         versionCode = gitCommitCount
-        versionName = '2.0.1-shoey63-unofficial'
+        versionName = '2.1.0-shoey63-unofficial'
         resourceConfigurations += supportedLocales
         optimization {
             keepRules {
