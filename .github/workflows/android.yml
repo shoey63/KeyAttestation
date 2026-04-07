@@ -1,12 +1,14 @@
 name: Build
 
 on:
-  push:
-    branches:
-      - main
-      - '*' # Triggers on any branch push
+  # Temporarily disabled to prevent stray builds
+  # push:
+  #   branches:
+  #     - master
+  #     - '*'
   pull_request:
     branches:
+      - master
       - main
   workflow_dispatch:
     inputs:
