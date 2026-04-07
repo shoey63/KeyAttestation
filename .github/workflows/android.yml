@@ -1,70 +1,61 @@
-name: Build
+name: Manual Release Build
 
 on:
-  # Temporarily disabled to prevent stray builds
-  # push:
-  #   branches:
-  #     - master
-  #     - '*'
-  pull_request:
-    branches:
-      - master
-      - main
   workflow_dispatch:
     inputs:
-      build_type:
-        description: 'Select Build Type'
+      version_name:
+        description: 'Release Version / Tag (e.g., 2.1.0-shoey63-unofficial)'
         required: true
-        default: 'debug'
-        type: choice
-        options:
-          - debug
-          - release
+        default: '2.1.0-shoey63-unofficial'
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, windows-latest, macOS-latest ]
+  build-and-release:
+    name: Build and Publish Release
+    runs-on: ubuntu-latest
+    
+    # Required permission to let the bot create the Release and Tag
+    permissions:
+      contents: write 
 
     steps:
       - name: Check out
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
         with:
           build-scan-publish: true
           build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
           build-scan-terms-of-use-agree: "yes"
-      - name: Decode Keystore
-        shell: bash
-        run: |
-          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > app/Vision.jks
-      - name: Build with Gradle
+
+      - name: Build Release APK
         shell: bash
         run: |
           echo 'org.gradle.jvmargs=-Xmx2048m' >> gradle.properties
           echo 'org.gradle.caching=true' >> gradle.properties
           echo 'org.gradle.parallel=true' >> gradle.properties
-          ./gradlew assemble
+          ./gradlew assembleRelease
+
+      - name: Rename APK
+        shell: bash
+        run: |
+          # Finds whatever APK gradle spat out (signed or unsigned) and renames it using your input
+          find app/build/outputs/apk/release/ -name "*.apk" -exec mv {} app/build/outputs/apk/release/Key-Attestation_${{ github.event.inputs.version_name }}-release.apk \;
+
+      - name: Create GitHub Release and Tag
+        uses: softprops/action-gh-release@v2
         env:
-          # All key information is grouped here
-          STORE_FILE: Vision.jks
-          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v6
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: ${{ matrix.os }}-artifact
-          path: app/build/outputs
+          tag_name: v${{ github.event.inputs.version_name }}
+          name: Release ${{ github.event.inputs.version_name }}
+          files: app/build/outputs/apk/release/Key-Attestation_${{ github.event.inputs.version_name }}-release.apk
+          generate_release_notes: true
